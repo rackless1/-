@@ -7,6 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultContainer = document.getElementById('result-container');
     const fileUpload = document.getElementById('file-upload');
 
+    // 初始化学习数据
+    initLearningData();
+    
+    // 初始化学习追踪展示
+    updateLearningTracker();
+    
+    // 初始化练习模块
+    updatePracticeModule();
+
     // 初始化行号
     updateLineNumbers();
 
@@ -77,6 +86,635 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // 初始化学习数据
+    function initLearningData() {
+        const existingData = localStorage.getItem('learningData');
+        if (!existingData) {
+            const initialData = {
+                exercises: [],
+                errorStats: {},
+                skillLevels: {
+                    '基础语法': 0,
+                    '函数定义': 0,
+                    '数据类型': 0,
+                    '逻辑控制': 0,
+                    '异常处理': 0
+                },
+                lastUpdated: Date.now()
+            };
+            localStorage.setItem('learningData', JSON.stringify(initialData));
+        }
+    }
+
+    // 获取学习数据
+    function getLearningData() {
+        const data = localStorage.getItem('learningData');
+        return data ? JSON.parse(data) : initLearningData();
+    }
+
+    // 保存学习数据
+    function saveLearningData(data) {
+        data.lastUpdated = Date.now();
+        localStorage.setItem('learningData', JSON.stringify(data));
+    }
+
+    // 记录练习数据
+    function recordExercise(code, errors) {
+        const learningData = getLearningData();
+        
+        // 添加练习记录
+        learningData.exercises.push({
+            id: 'ex' + Date.now(),
+            code: code,
+            errors: errors,
+            timestamp: Date.now(),
+            fixed: false
+        });
+        
+        // 更新错误统计
+        errors.forEach(error => {
+            if (learningData.errorStats[error.typeName]) {
+                learningData.errorStats[error.typeName]++;
+            } else {
+                learningData.errorStats[error.typeName] = 1;
+            }
+        });
+        
+        // 更新技能水平
+        updateSkillLevels(learningData, errors);
+        
+        // 保存数据
+        saveLearningData(learningData);
+        
+        // 更新学习追踪展示
+        updateLearningTracker();
+        
+        // 更新练习模块
+        updatePracticeModule();
+    }
+
+    // 更新技能水平
+    function updateSkillLevels(learningData, errors) {
+        // 根据错误类型更新对应技能的水平
+        const skillMap = {
+            '语法错误': '基础语法',
+            '缩进错误': '基础语法',
+            '变量未定义': '基础语法',
+            '类型错误': '数据类型',
+            '逻辑错误': '逻辑控制',
+            '除零错误': '逻辑控制',
+            '索引错误': '数据类型',
+            '键错误': '数据类型',
+            '属性错误': '数据类型',
+            '文件错误': '异常处理'
+        };
+        
+        errors.forEach(error => {
+            const skill = skillMap[error.typeName];
+            if (skill) {
+                // 错误会降低技能水平
+                learningData.skillLevels[skill] = Math.max(0, learningData.skillLevels[skill] - 5);
+            }
+        });
+        
+        // 每次练习都会提升所有技能的水平
+        Object.keys(learningData.skillLevels).forEach(skill => {
+            learningData.skillLevels[skill] = Math.min(100, learningData.skillLevels[skill] + 2);
+        });
+    }
+
+    // 练习题数据
+    const practiceQuestions = {
+        '缺少冒号': [
+            {
+                id: 'colon1',
+                title: '函数定义缺少冒号',
+                description: '在Python中，函数定义的末尾必须添加冒号',
+                code: 'def add(a, b)\n    return a + b',
+                options: [
+                    'def add(a, b)\n    return a + b',
+                    'def add(a, b):\n    return a + b',
+                    'def add(a, b)\nreturn a + b',
+                    'def add(a, b);\n    return a + b'
+                ],
+                correctAnswer: 1,
+                explanation: '在Python中，函数定义、条件语句和循环语句的末尾必须添加冒号，否则会引发语法错误。'
+            },
+            {
+                id: 'colon2',
+                title: '条件语句缺少冒号',
+                description: '在Python中，if语句的末尾必须添加冒号',
+                code: 'if True\nprint("Hello")',
+                options: [
+                    'if True\nprint("Hello")',
+                    'if True,\nprint("Hello")',
+                    'if True:\nprint("Hello")',
+                    'if True:\n    print("Hello")'
+                ],
+                correctAnswer: 3,
+                explanation: '在Python中，if语句的末尾必须添加冒号，并且语句块需要缩进。'
+            }
+        ],
+        '缩进错误': [
+            {
+                id: 'indent1',
+                title: '函数体缺少缩进',
+                description: '在Python中，函数体必须缩进',
+                code: 'def greet()\nprint("Hello")',
+                options: [
+                    'def greet()\nprint("Hello")',
+                    'def greet():\nprint("Hello")',
+                    'def greet():\n    print("Hello")',
+                    'def greet()\n    print("Hello")'
+                ],
+                correctAnswer: 2,
+                explanation: '在Python中，函数体必须缩进，通常使用4个空格作为缩进单位。'
+            },
+            {
+                id: 'indent2',
+                title: '循环体缺少缩进',
+                description: '在Python中，循环体必须缩进',
+                code: 'for i in range(5)\nprint(i)',
+                options: [
+                    'for i in range(5)\nprint(i)',
+                    'for i in range(5):\nprint(i)',
+                    'for i in range(5):\n    print(i)',
+                    'for i in range(5)\n    print(i)'
+                ],
+                correctAnswer: 2,
+                explanation: '在Python中，循环体必须缩进，通常使用4个空格作为缩进单位。'
+            }
+        ],
+        '变量未定义': [
+            {
+                id: 'var1',
+                title: '使用未定义的变量',
+                description: '在Python中，使用变量前必须先定义',
+                code: 'print(message)',
+                options: [
+                    'print(message)',
+                    'message = "Hello"\nprint(message)',
+                    'print("message")',
+                    'message = 123\nprint(message)'
+                ],
+                correctAnswer: 1,
+                explanation: '在Python中，使用变量前必须先定义，否则会引发NameError异常。'
+            },
+            {
+                id: 'var2',
+                title: '函数中使用未定义的变量',
+                description: '在Python中，函数中使用的变量必须先定义',
+                code: 'def calculate()\n    return x + y',
+                options: [
+                    'def calculate()\n    return x + y',
+                    'def calculate(x, y)\n    return x + y',
+                    'def calculate(x, y):\n    return x + y',
+                    'def calculate():\n    x = 1\n    y = 2\n    return x + y'
+                ],
+                correctAnswer: 2,
+                explanation: '在Python中，函数中使用的变量必须先定义，可以作为参数传入或在函数内部定义。'
+            }
+        ],
+        '字符串与数字不能相加': [
+            {
+                id: 'type1',
+                title: '字符串和数字直接拼接',
+                description: '在Python中，字符串和数字不能直接拼接',
+                code: 'age = 18\nprint("年龄: " + age)',
+                options: [
+                    'age = 18\nprint("年龄: " + age)',
+                    'age = 18\nprint("年龄: " + str(age))',
+                    'age = 18\nprint("年龄: " + age + "岁")',
+                    'age = 18\nprint("年龄: " + int(age))'
+                ],
+                correctAnswer: 1,
+                explanation: '在Python中，字符串和数字不能直接拼接，需要使用str()函数将数字转换为字符串。'
+            },
+            {
+                id: 'type2',
+                title: '使用f-string格式化',
+                description: '在Python中，可以使用f-string进行字符串格式化',
+                code: 'name = "Alice"\nage = 20\nprint("姓名: " + name + "，年龄: " + age)',
+                options: [
+                    'name = "Alice"\nage = 20\nprint("姓名: " + name + "，年龄: " + age)',
+                    'name = "Alice"\nage = 20\nprint("姓名: " + name + "，年龄: " + str(age))',
+                    'name = "Alice"\nage = 20\nprint(f"姓名: {name}，年龄: {age}")',
+                    'name = "Alice"\nage = 20\nprint("姓名: {}, 年龄: {}".format(name, age))'
+                ],
+                correctAnswer: 2,
+                explanation: '在Python 3.6+中，可以使用f-string进行字符串格式化，它会自动处理不同类型的变量。'
+            }
+        ],
+        '语法错误': [
+            {
+                id: 'syntax1',
+                title: '缺少引号',
+                description: '在Python中，字符串必须用引号包围',
+                code: 'print(Hello)',
+                options: [
+                    'print(Hello)',
+                    'print("Hello")',
+                    'print(\'Hello\')',
+                    'print(Hello())'
+                ],
+                correctAnswer: 1,
+                explanation: '在Python中，字符串必须用引号（单引号或双引号）包围，否则会被视为变量名。'
+            },
+            {
+                id: 'syntax2',
+                title: '括号不匹配',
+                description: '在Python中，括号必须成对出现',
+                code: 'print("Hello", end="',
+                options: [
+                    'print("Hello", end="',
+                    'print("Hello", end="")',
+                    'print("Hello", end="\n")',
+                    'print("Hello", end=)' 
+                ],
+                correctAnswer: 1,
+                explanation: '在Python中，括号必须成对出现，否则会引发语法错误。'
+            }
+        ],
+        '键错误': [
+            {
+                id: 'key1',
+                title: '字典键不存在',
+                description: '在Python中，访问字典中不存在的键会引发KeyError',
+                code: 'student = {"name": "Alice"}\nprint(student["age"])\n',
+                options: [
+                    'student = {"name": "Alice"}\nprint(student["age"])\n',
+                    'student = {"name": "Alice", "age": 18}\nprint(student["age"])\n',
+                    'student = {"name": "Alice"}\nprint(student.get("age", "未知"))\n',
+                    'student = {"name": "Alice"}\nprint("age" in student)\n'
+                ],
+                correctAnswer: 2,
+                explanation: '在Python中，使用get()方法可以安全地访问字典中不存在的键，并提供默认值。'
+            },
+            {
+                id: 'key2',
+                title: '列表索引越界',
+                description: '在Python中，访问列表中不存在的索引会引发IndexError',
+                code: 'numbers = [1, 2, 3]\nprint(numbers[5])\n',
+                options: [
+                    'numbers = [1, 2, 3]\nprint(numbers[5])\n',
+                    'numbers = [1, 2, 3, 4, 5]\nprint(numbers[5])\n',
+                    'numbers = [1, 2, 3]\nif len(numbers) > 5:\n    print(numbers[5])\nelse:\n    print("索引不存在")\n',
+                    'numbers = [1, 2, 3]\nprint(numbers[-1])\n'
+                ],
+                correctAnswer: 2,
+                explanation: '在Python中，访问列表索引前应该检查索引是否在有效范围内，或者使用异常处理。'
+            }
+        ]
+    };
+
+    // 生成针对性练习
+    function generatePractice(errorType) {
+        return practiceQuestions[errorType] || null;
+    }
+
+    // 当前练习状态
+    let currentPractice = {
+        errorType: null,
+        questions: [],
+        currentIndex: 0,
+        userAnswers: []
+    };
+
+    // 更新练习模块
+    function updatePracticeModule() {
+        const learningData = getLearningData();
+        const practiceContainer = document.getElementById('practice-container');
+        
+        if (!learningData || Object.keys(learningData.errorStats).length === 0) {
+            practiceContainer.innerHTML = `
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i> 开始练习后，这里将展示针对性的练习题
+                </div>
+            `;
+            return;
+        }
+        
+        // 获取最常见的错误类型
+        const sortedErrors = Object.entries(learningData.errorStats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3);
+        
+        if (sortedErrors.length === 0) {
+            practiceContainer.innerHTML = `
+                <div class="alert alert-success" role="alert">
+                    <i class="fas fa-check-circle"></i> 暂无错误记录，继续保持！
+                </div>
+            `;
+            return;
+        }
+        
+        // 生成练习模块HTML
+        let html = `
+            <div class="mb-4">
+                <h4>针对性练习</h4>
+                <p>根据您的错误记录，推荐以下练习：</p>
+                <ul class="list-group mb-4">
+                    ${sortedErrors.map(([error, count]) => `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            ${error}
+                            <span class="badge bg-danger rounded-pill">${count}</span>
+                            <button class="btn btn-sm btn-warning start-practice" data-error-type="${error}">
+                                <i class="fas fa-play"></i> 开始练习
+                            </button>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+        
+        practiceContainer.innerHTML = html;
+        
+        // 添加开始练习按钮事件
+        document.querySelectorAll('.start-practice').forEach(button => {
+            button.addEventListener('click', function() {
+                const errorType = this.getAttribute('data-error-type');
+                startPractice(errorType);
+            });
+        });
+    }
+
+    // 开始练习
+    function startPractice(errorType) {
+        const questions = generatePractice(errorType);
+        if (!questions || questions.length === 0) {
+            const practiceContainer = document.getElementById('practice-container');
+            practiceContainer.innerHTML = `
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i> 该错误类型暂时没有练习题，敬请期待！
+                    <button class="btn btn-outline-primary mt-2 w-100" onclick="updatePracticeModule()">
+                        <i class="fas fa-arrow-left"></i> 返回错误类型选择
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        currentPractice = {
+            errorType: errorType,
+            questions: questions,
+            currentIndex: 0,
+            userAnswers: new Array(questions.length).fill(null)
+        };
+        
+        showCurrentQuestion();
+    }
+
+    // 显示当前问题
+    function showCurrentQuestion() {
+        const practiceContainer = document.getElementById('practice-container');
+        const question = currentPractice.questions[currentPractice.currentIndex];
+        
+        let html = `
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4>${currentPractice.errorType}练习</h4>
+                    <span class="badge bg-secondary">${currentPractice.currentIndex + 1}/${currentPractice.questions.length}</span>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5>${question.title}</h5>
+                        <p class="text-muted">${question.description}</p>
+                        <pre class="bg-light p-2 rounded mt-2"><code>${question.code}</code></pre>
+                        <div class="mt-3">
+                            <h6>请选择正确的修复方案：</h6>
+                            <div class="list-group mt-2">
+                                ${question.options.map((option, index) => `
+                                    <label class="list-group-item">
+                                        <input type="radio" name="answer" value="${index}" ${currentPractice.userAnswers[currentPractice.currentIndex] === index ? 'checked' : ''}>
+                                        <pre class="m-0"><code>${option}</code></pre>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <button class="btn btn-secondary ${currentPractice.currentIndex === 0 ? 'disabled' : ''}" ${currentPractice.currentIndex === 0 ? 'disabled' : ''} onclick="prevQuestion()">
+                        <i class="fas fa-arrow-left"></i> 上一题
+                    </button>
+                    <button class="btn btn-primary" onclick="submitAnswer()">
+                        提交答案 <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn btn-secondary ${currentPractice.currentIndex === currentPractice.questions.length - 1 ? 'disabled' : ''}" ${currentPractice.currentIndex === currentPractice.questions.length - 1 ? 'disabled' : ''} onclick="nextQuestion()">
+                        下一题 <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <button class="btn btn-outline-primary w-100" onclick="updatePracticeModule()">
+                    <i class="fas fa-arrow-left"></i> 返回错误类型选择
+                </button>
+            </div>
+        `;
+        
+        practiceContainer.innerHTML = html;
+    }
+
+    // 提交答案
+    function submitAnswer() {
+        const selectedOption = document.querySelector('input[name="answer"]:checked');
+        if (!selectedOption) {
+            alert('请选择一个答案');
+            return;
+        }
+        
+        const answer = parseInt(selectedOption.value);
+        currentPractice.userAnswers[currentPractice.currentIndex] = answer;
+        
+        const question = currentPractice.questions[currentPractice.currentIndex];
+        const isCorrect = answer === question.correctAnswer;
+        
+        const practiceContainer = document.getElementById('practice-container');
+        
+        let html = `
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4>${currentPractice.errorType}练习</h4>
+                    <span class="badge bg-secondary">${currentPractice.currentIndex + 1}/${currentPractice.questions.length}</span>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5>${question.title}</h5>
+                        <p class="text-muted">${question.description}</p>
+                        <pre class="bg-light p-2 rounded mt-2"><code>${question.code}</code></pre>
+                        <div class="mt-3">
+                            <h6>您的答案：</h6>
+                            <div class="list-group mt-2">
+                                ${question.options.map((option, index) => `
+                                    <label class="list-group-item ${index === answer ? (isCorrect ? 'list-group-item-success' : 'list-group-item-danger') : ''}">
+                                        <input type="radio" name="answer" value="${index}" checked disabled>
+                                        <pre class="m-0"><code>${option}</code></pre>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <div class="mt-3 alert ${isCorrect ? 'alert-success' : 'alert-danger'}">
+                                <h6>${isCorrect ? '回答正确！' : '回答错误'}</h6>
+                                <p>${question.explanation}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button class="btn btn-secondary ${currentPractice.currentIndex === 0 ? 'disabled' : ''}" ${currentPractice.currentIndex === 0 ? 'disabled' : ''} onclick="prevQuestion()">
+                        <i class="fas fa-arrow-left"></i> 上一题
+                    </button>
+                    <button class="btn btn-info" onclick="updatePracticeModule()">
+                        <i class="fas fa-arrow-left"></i> 返回练习列表
+                    </button>
+                    <button class="btn btn-secondary ${currentPractice.currentIndex === currentPractice.questions.length - 1 ? 'disabled' : ''}" ${currentPractice.currentIndex === currentPractice.questions.length - 1 ? 'disabled' : ''} onclick="nextQuestion()">
+                        下一题 <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        practiceContainer.innerHTML = html;
+    }
+
+    // 上一题
+    function prevQuestion() {
+        if (currentPractice.currentIndex > 0) {
+            currentPractice.currentIndex--;
+            showCurrentQuestion();
+        }
+    }
+
+    // 下一题
+    function nextQuestion() {
+        if (currentPractice.currentIndex < currentPractice.questions.length - 1) {
+            currentPractice.currentIndex++;
+            showCurrentQuestion();
+        }
+    }
+
+    // 全局函数，供HTML调用
+    window.prevQuestion = prevQuestion;
+    window.nextQuestion = nextQuestion;
+    window.submitAnswer = submitAnswer;
+    window.updatePracticeModule = updatePracticeModule;
+
+    // 更新学习追踪展示
+    function updateLearningTracker() {
+        const learningData = getLearningData();
+        const learningTracker = document.getElementById('learning-tracker');
+        
+        if (!learningData || learningData.exercises.length === 0) {
+            learningTracker.innerHTML = `
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i> 开始练习后，这里将展示您的学习情况
+                </div>
+            `;
+            return;
+        }
+        
+        // 计算统计数据
+        const totalExercises = learningData.exercises.length;
+        const totalErrors = learningData.exercises.reduce((sum, ex) => sum + ex.errors.length, 0);
+        const recentExercises = learningData.exercises.slice(-5).reverse();
+        
+        // 获取最常见的错误
+        const sortedErrors = Object.entries(learningData.errorStats)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3);
+        
+        // 获取待提升的技能
+        const weakSkills = Object.entries(learningData.skillLevels)
+            .filter(([skill, level]) => level < 60)
+            .sort((a, b) => a[1] - b[1])
+            .slice(0, 3);
+        
+        // 生成学习追踪HTML
+        let html = `
+            <div class="mb-4">
+                <h4>学习统计</h4>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card bg-light text-center p-3">
+                            <div class="h2">${totalExercises}</div>
+                            <div class="text-muted">练习次数</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light text-center p-3">
+                            <div class="h2">${totalErrors}</div>
+                            <div class="text-muted">错误总数</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light text-center p-3">
+                            <div class="h2">${Math.round((totalExercises / (totalExercises + totalErrors)) * 100)}%</div>
+                            <div class="text-muted">正确率</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <h4>常犯错误</h4>
+                ${sortedErrors.length > 0 ? `
+                    <ul class="list-group">
+                        ${sortedErrors.map(([error, count]) => `
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                ${error}
+                                <span class="badge bg-danger rounded-pill">${count}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                ` : `
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle"></i> 暂无错误记录
+                    </div>
+                `}
+            </div>
+            
+            <div class="mb-4">
+                <h4>待提升知识点</h4>
+                ${weakSkills.length > 0 ? `
+                    <ul class="list-group">
+                        ${weakSkills.map(([skill, level]) => `
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                ${skill}
+                                <div class="progress" style="width: 100px;">
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: ${level}%" aria-valuenow="${level}" aria-valuemin="0" aria-valuemax="100">${level}%</div>
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                ` : `
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle"></i> 所有知识点掌握良好
+                    </div>
+                `}
+            </div>
+            
+            <div class="mb-4">
+                <h4>最近练习</h4>
+                ${recentExercises.length > 0 ? `
+                    <div class="list-group">
+                        ${recentExercises.map(ex => `
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">${new Date(ex.timestamp).toLocaleString()}</small>
+                                    <span class="badge ${ex.errors.length > 0 ? 'bg-danger' : 'bg-success'}">${ex.errors.length} 个错误</span>
+                                </div>
+                                <pre class="mt-2 bg-light p-2 rounded" style="font-size: 12px; white-space: pre-wrap;">${ex.code.substring(0, 100)}${ex.code.length > 100 ? '...' : ''}</pre>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i> 暂无练习记录
+                    </div>
+                `}
+            </div>
+        `;
+        
+        learningTracker.innerHTML = html;
+    }
+
     // 显示分析结果
     function displayResult(result) {
         if (result.success) {
@@ -87,6 +725,9 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             // 清除错误标注
             highlightErrorLines([]);
+            
+            // 记录练习数据（无错误）
+            recordExercise(codeInput.value, []);
         } else {
             let html = '';
             const codeLines = codeInput.value.split('\n');
@@ -150,6 +791,9 @@ document.addEventListener('DOMContentLoaded', function() {
             resultContainer.innerHTML = html;
             // 标注错误行
             highlightErrorLines(result.errors);
+            
+            // 记录练习数据（有错误）
+            recordExercise(codeInput.value, result.errors);
         }
     }
 

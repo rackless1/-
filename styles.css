@@ -33,6 +33,14 @@ header h1 {
     position: sticky;
     top: 20px;
     z-index: 100;
+    min-height: 500px;
+    max-height: 900px;
+    overflow-y: auto;
+}
+
+/* 确保flex布局不影响sticky定位 */
+.flex-item {
+    position: relative;
 }
 
 .card-header {
@@ -343,4 +351,38 @@ header h1 {
 .knowledge-point p {
     font-size: 13px;
     line-height: 1.4;
+}
+
+/* 自定义flex布局 */
+.flex-item {
+    flex: 0 0 24%;
+    max-width: 24%;
+}
+
+@media (max-width: 1200px) {
+    .flex-item {
+        flex: 0 0 24%;
+        max-width: 24%;
+    }
+}
+
+@media (max-width: 992px) {
+    .flex-item {
+        flex: 0 0 32%;
+        max-width: 32%;
+    }
+}
+
+@media (max-width: 768px) {
+    .flex-item {
+        flex: 0 0 48%;
+        max-width: 48%;
+    }
+}
+
+@media (max-width: 576px) {
+    .flex-item {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
 }
