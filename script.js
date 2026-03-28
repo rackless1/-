@@ -880,7 +880,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    // 分析代码（使用Spark Ultra-32K API）
+    // 分析代码（使用Python AST后端API）
     function analyzeCode(code, error) {
         return new Promise((resolve, reject) => {
             // 构建请求数据
@@ -889,36 +889,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 error: error
             };
 
-            // 调用Spark Ultra-32K API
-            callSparkAPI(requestData)
-                .then(apiResponse => {
-                    // 处理API响应
-                    if (apiResponse.success) {
-                        resolve({
-                            success: true,
-                            message: apiResponse.message || '代码分析完成，未检测到明显错误。'
-                        });
-                    } else {
-                        resolve({
-                            success: false,
-                            errors: apiResponse.errors || []
-                        });
-                    }
-                })
-                .catch(error => {
-                    // API调用失败时，使用本地分析作为备份
-                    console.error('Spark API调用失败，使用本地分析:', error);
-                    try {
-                        const localResult = analyzeCodeLocally(code, error);
-                        resolve(localResult);
-                    } catch (localError) {
-                        console.error('本地分析也失败:', localError);
-                        resolve({
-                            success: true,
-                            message: '代码分析完成，未检测到明显错误。'
-                        });
-                    }
-                });
+            // 调用Python AST后端API
+            fetch('http://localhost:5000/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(apiResponse => {
+                // 处理API响应
+                if (apiResponse.success) {
+                    resolve({
+                        success: true,
+                        message: apiResponse.message || '代码分析完成，未检测到明显错误。'
+                    });
+                } else {
+                    resolve({
+                        success: false,
+                        errors: apiResponse.errors || []
+                    });
+                }
+            })
+            .catch(error => {
+                // API调用失败时，使用本地分析作为备份
+                console.error('Python AST API调用失败，使用本地分析:', error);
+                try {
+                    const localResult = analyzeCodeLocally(code, error);
+                    resolve(localResult);
+                } catch (localError) {
+                    console.error('本地分析也失败:', localError);
+                    resolve({
+                        success: true,
+                        message: '代码分析完成，未检测到明显错误。'
+                    });
+                }
+            });
         });
     }
 
